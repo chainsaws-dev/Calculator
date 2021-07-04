@@ -140,64 +140,53 @@ namespace Calculator
         /// <param name="CharNum">Код ASCII цифры или символа</param>
         private void AddCharNum(byte CharNum)
         {
-            bool Reset = false;
+            bool Reset;
 
             if (CurrentAction == ActionTypes.None)
             {
-                int FirstLen = this.FirstEnteredNumber.Length;
-                if (FirstLen == 0)
-                {
-                    this.FirstEnteredNumber = new byte[1];
-                    this.FirstEnteredNumber[0] = CharNum;
-                    Reset = true;
-                }
-                else
-                {
-                    if (this.FirstEnteredNumber[0] == 48 && !this.DecimalDividerUsed)
-                    {
-                        this.FirstEnteredNumber = new byte[1];
-                        this.FirstEnteredNumber[0] = CharNum;
-                        Reset = true;
-                    }
-                    else
-                    {
-                        byte[] ExpandedArr = new byte[FirstLen + 1];
-                        this.FirstEnteredNumber.CopyTo(ExpandedArr, 0);
-                        ExpandedArr[FirstLen] = CharNum;
-                        this.FirstEnteredNumber = ExpandedArr;
-                        Reset = false;
-                    }
-                }
+                var Res = AddCharToSelectedNumber(this.FirstEnteredNumber, CharNum);
+                Reset = Res.Reset;
+                this.FirstEnteredNumber = Res.ResultNumber;
             }
             else
             {
-                int SecondLen = this.SecondEnteredNumber.Length;
-                if (SecondLen == 0)
+                var Res = AddCharToSelectedNumber(this.SecondEnteredNumber, CharNum);
+                Reset = Res.Reset;
+                this.SecondEnteredNumber = Res.ResultNumber;
+            }
+
+            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset));
+        }
+
+        private (bool Reset, byte[] ResultNumber) AddCharToSelectedNumber(byte[] EnteredNumber, byte CharNum)
+        {
+            bool Reset;
+            int SecondLen = EnteredNumber.Length;
+            if (SecondLen == 0)
+            {
+                EnteredNumber = new byte[1];
+                EnteredNumber[0] = CharNum;
+                Reset = true;
+            }
+            else
+            {
+                if (EnteredNumber[0] == 48 && !this.DecimalDividerUsed)
                 {
-                    this.SecondEnteredNumber = new byte[1];
-                    this.SecondEnteredNumber[0] = CharNum;
+                    EnteredNumber = new byte[1];
+                    EnteredNumber[0] = CharNum;
                     Reset = true;
                 }
                 else
                 {
-                    if (this.SecondEnteredNumber[0] == 48 && !this.DecimalDividerUsed)
-                    {
-                        this.SecondEnteredNumber = new byte[1];
-                        this.SecondEnteredNumber[0] = CharNum;
-                        Reset = true;
-                    }
-                    else
-                    {
-                        byte[] ExpandedArr = new byte[SecondLen + 1];
-                        this.SecondEnteredNumber.CopyTo(ExpandedArr, 0);
-                        ExpandedArr[SecondLen] = CharNum;
-                        this.SecondEnteredNumber = ExpandedArr;
-                        Reset = false;
-                    }
+                    byte[] ExpandedArr = new byte[SecondLen + 1];
+                    EnteredNumber.CopyTo(ExpandedArr, 0);
+                    ExpandedArr[SecondLen] = CharNum;
+                    EnteredNumber = ExpandedArr;
+                    Reset = false;
                 }
             }
 
-            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset));
+            return (Reset, EnteredNumber);
         }
 
         /// <summary>
