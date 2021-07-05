@@ -31,7 +31,7 @@ namespace Calculator
         {
             this.CalcEngine = new CalculatorEngine(13);
             this.CalcEngine.OnValidInput += OnValidCharInput;
-            this.WidthBind = this.Size.Width / 6;
+            this.WidthBind = (this.Size.Width - 22) / 6;
 
             this.LabelForResult = CreateSetLabelFormatting("0");
 
@@ -49,6 +49,10 @@ namespace Calculator
             AddZero();
 
             AddDecimalDelimiter();
+
+            AddPlus();
+
+            AddEquals();
         }
 
         /// <summary>
@@ -71,8 +75,25 @@ namespace Calculator
             newButton.Location = new Point(BasePosition.X + WidthBind * 2, BasePosition.Y + WidthBind);
         }
 
+        /// <summary>
+        /// Создаём кнопку для вызова действия сложение
+        /// </summary>
         private void AddPlus()
         {
+            Button newButton = CreateSetButtonFormatting("+");
+
+            newButton.Height *= 2;
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 3, BasePosition.Y);
+        }
+
+        private void AddEquals()
+        {
+            Button newButton = CreateSetButtonFormatting("=");
+
+            newButton.Height *= 2;
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 4, BasePosition.Y);
         }
 
         /// <summary>
