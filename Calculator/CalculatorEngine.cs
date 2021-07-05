@@ -225,74 +225,75 @@ namespace Calculator
         /// <returns></returns>
         private void IntervalCheckAndEvaluation(byte CharNum)
         {
-            if (CanExpandNumber())
+            if (CharNum >= NumbersStart && CharNum <= NumbersEnd)
             {
-                if (CharNum >= NumbersStart && CharNum <= NumbersEnd)
+                if (CanExpandNumber())
                 {
                     // Символ является числом
                     AddCharNum(CharNum);
                 }
+            }
 
-                if (CharNum >= ActionsStart && CharNum <= ActionsEnd)
+            if (CharNum >= ActionsStart && CharNum <= ActionsEnd)
+            {
+                // Символ является действием над числом
+                // или разделителем десятичных дробей
+                if (CharNum == 44 || CharNum == 46)
                 {
-                    // Символ является действием над числом
-                    // или разделителем десятичных дробей
-                    if (CharNum == 44 || CharNum == 46)
+                    if (!this.DecimalDividerUsed && CanExpandNumber())
                     {
-                        if (!this.DecimalDividerUsed)
-                        {
-                            // Выводим разделители десятичных дробей
-                            this.DecimalDividerUsed = true;
+                        // Выводим разделители десятичных дробей
+                        this.DecimalDividerUsed = true;
 
-                            if (this.CurrentAction == ActionTypes.None)
-                            {
-                                CheckLengthAndAddDecSep(this.FirstEnteredNumber, CharNum);
-                            }
-                            else
-                            {
-                                CheckLengthAndAddDecSep(this.SecondEnteredNumber, CharNum);
-                            }
+                        if (this.CurrentAction == ActionTypes.None)
+                        {
+                            CheckLengthAndAddDecSep(this.FirstEnteredNumber, CharNum);
+                        }
+                        else
+                        {
+                            CheckLengthAndAddDecSep(this.SecondEnteredNumber, CharNum);
                         }
                     }
-                    else
-                    {
-                        // Остальные действия устанавливают режим ввода второго числа
-                        switch (CharNum)
-                        {
-                            case 42:
-                                this.CurrentAction = ActionTypes.Multiply;
-                                break;
-
-                            case 43:
-                                this.CurrentAction = ActionTypes.Add;
-                                break;
-
-                            case 45:
-                                this.CurrentAction = ActionTypes.Subtract;
-                                break;
-
-                            case 47:
-                                this.CurrentAction = ActionTypes.Divide;
-                                break;
-
-                            default:
-                                new ArgumentOutOfRangeException("CharNum", CharNum, "Core failure: Character number out of range");
-                                break;
-                        }
-
-                        this.DecimalDividerUsed = false;
-                        this.OnValidInput?.Invoke(this, new ValidInputEventArgs("", true));
-                    }
                 }
-
-                if (CharNum == ActionEquals)
+                else
                 {
-                    // Символ равно - выполняем действие над двумя числами
+                    // Остальные действия устанавливают режим ввода второго числа
+                    switch (CharNum)
+                    {
+                        case 42:
+                            this.CurrentAction = ActionTypes.Multiply;
+                            break;
 
-                    // TODO
+                        case 43:
+                            this.CurrentAction = ActionTypes.Add;
+                            break;
 
-                    this.CurrentAction = ActionTypes.None;
+                        case 45:
+                            this.CurrentAction = ActionTypes.Subtract;
+                            break;
+
+                        case 47:
+                            this.CurrentAction = ActionTypes.Divide;
+                            break;
+
+                        default:
+                            new ArgumentOutOfRangeException("CharNum", CharNum, "Core failure: Character number out of range");
+                            break;
+                    }
+
+                    this.DecimalDividerUsed = false;
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
                 }
+            }
+
+            if (CharNum == ActionEquals)
+            {
+                // Символ равно - выполняем действие над двумя числами
+
+                // TODO
+
+                this.DecimalDividerUsed = false;
+                this.CurrentAction = ActionTypes.None;
             }
         }
 

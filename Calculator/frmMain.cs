@@ -52,6 +52,8 @@ namespace Calculator
 
             AddPlus();
 
+            AddMinus();
+
             AddEquals();
         }
 
@@ -62,7 +64,9 @@ namespace Calculator
         {
             Button newButton = CreateSetButtonFormatting("0");
 
-            newButton.Location = new Point(BasePosition.X + WidthBind, BasePosition.Y + WidthBind);
+            newButton.Width *= 2;
+
+            newButton.Location = new Point(BasePosition.X, BasePosition.Y + WidthBind);
         }
 
         /// <summary>
@@ -87,6 +91,21 @@ namespace Calculator
             newButton.Location = new Point(BasePosition.X + WidthBind * 3, BasePosition.Y);
         }
 
+        /// <summary>
+        /// Создаём кнопку для вызова действия сложение
+        /// </summary>
+        private void AddMinus()
+        {
+            Button newButton = CreateSetButtonFormatting("-");
+
+            newButton.Height *= 2;
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 3, BasePosition.Y - WidthBind * 2);
+        }
+
+        /// <summary>
+        /// Создаём кнопку для вызова вычисления операции
+        /// </summary>
         private void AddEquals()
         {
             Button newButton = CreateSetButtonFormatting("=");
