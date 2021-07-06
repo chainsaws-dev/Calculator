@@ -62,6 +62,8 @@ namespace Calculator
 
         public byte[] FirstEnteredNumber { get; private set; }
         public byte[] SecondEnteredNumber { get; private set; }
+        public byte[] Result { get; private set; }
+
         public int MaxPlaces { get; private set; }
         public string DecSep { get; private set; }
 
@@ -88,6 +90,7 @@ namespace Calculator
         {
             this.FirstEnteredNumber = new byte[] { };
             this.SecondEnteredNumber = new byte[] { };
+            this.Result = new byte[] { };
             this.MaxPlaces = MaxPlaces;
             this.DecSep = this.GetCurrentDecimalSeparator().ToString();
             this.CurrentAction = ActionTypes.None;
@@ -135,6 +138,31 @@ namespace Calculator
         }
 
         /// <summary>
+        /// Метод для вызова очистки введённого числа
+        /// </summary>
+        /// <param name="Mode"></param>
+        public void ClearEnteredNumbers(string Mode)
+        {
+            switch (Mode)
+            {
+                case "CE":
+                    this.SecondEnteredNumber = new byte[] { };
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
+                    break;
+
+                case "C":
+                    this.FirstEnteredNumber = new byte[] { };
+                    this.SecondEnteredNumber = new byte[] { };
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
+                    break;
+
+                default:
+                    new ArgumentOutOfRangeException("Mode", Mode, "Core failure: Unsupported clear mode");
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Добавляет новую цифру в число
         /// </summary>
         /// <param name="CharNum">Код ASCII цифры или символа</param>
@@ -158,6 +186,12 @@ namespace Calculator
             this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset));
         }
 
+        /// <summary>
+        /// Добавляет в выбранное число (первое или второе в операции)
+        /// </summary>
+        /// <param name="EnteredNumber">Изменяемый массив байтов</param>
+        /// <param name="CharNum">Код ASCII цифры</param>
+        /// <returns></returns>
         private (bool Reset, byte[] ResultNumber) AddCharToSelectedNumber(byte[] EnteredNumber, byte CharNum)
         {
             bool Reset;

@@ -55,6 +55,14 @@ namespace Calculator
             AddMinus();
 
             AddEquals();
+
+            AddMultiply();
+
+            AddDivide();
+
+            AddClearLast();
+
+            AddClearAll();
         }
 
         /// <summary>
@@ -104,6 +112,26 @@ namespace Calculator
         }
 
         /// <summary>
+        /// Создаём кнопку для вызова действия умножение
+        /// </summary>
+        private void AddMultiply()
+        {
+            Button newButton = CreateSetButtonFormatting("*");
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 4, BasePosition.Y - WidthBind * 2);
+        }
+
+        /// <summary>
+        /// Создаём кнопку для вызова действия деление
+        /// </summary>
+        private void AddDivide()
+        {
+            Button newButton = CreateSetButtonFormatting("/");
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 4, BasePosition.Y - WidthBind);
+        }
+
+        /// <summary>
         /// Создаём кнопку для вызова вычисления операции
         /// </summary>
         private void AddEquals()
@@ -113,6 +141,24 @@ namespace Calculator
             newButton.Height *= 2;
 
             newButton.Location = new Point(BasePosition.X + WidthBind * 4, BasePosition.Y);
+        }
+
+        private void AddClearLast()
+        {
+            Button newButton = CreateSetButtonFormatting("C");
+
+            newButton.Font = new Font(FontFamily.GenericSansSerif, 22);
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 5, BasePosition.Y - WidthBind);
+        }
+
+        private void AddClearAll()
+        {
+            Button newButton = CreateSetButtonFormatting("CE");
+
+            newButton.Font = new Font(FontFamily.GenericSansSerif, 22);
+
+            newButton.Location = new Point(BasePosition.X + WidthBind * 5, BasePosition.Y - WidthBind * 2);
         }
 
         /// <summary>
@@ -179,7 +225,14 @@ namespace Calculator
         private void OnAnyButtonClick(object sender, EventArgs e)
         {
             Button ClickedBtn = (Button)sender;
-            this.CalcEngine.ExpandEnteredNumber(ClickedBtn.Text.ToCharArray()[0]);
+            if (ClickedBtn.Text == "C" || ClickedBtn.Text == "CE")
+            {
+                this.CalcEngine.ClearEnteredNumbers(ClickedBtn.Text);
+            }
+            else
+            {
+                this.CalcEngine.ExpandEnteredNumber(ClickedBtn.Text.ToCharArray()[0]);
+            }
         }
 
         /// <summary>
