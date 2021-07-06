@@ -409,12 +409,40 @@ namespace Calculator
             if (First.BeforeDec.Length != Second.BeforeDec.Length)
             {
                 var BeforeZeroed = this.LevelNumberParts(First.BeforeDec, Second.BeforeDec, false);
+                First.BeforeDec = BeforeZeroed.FRes;
+                Second.BeforeDec = BeforeZeroed.SRes;
             }
 
             if (First.AfterDec.Length != Second.AfterDec.Length)
             {
                 var AfterZeroed = this.LevelNumberParts(First.AfterDec, Second.AfterDec, true);
+                First.AfterDec = AfterZeroed.FRes;
+                Second.AfterDec = AfterZeroed.SRes;
             }
+
+            this.FirstEnteredNumber = this.JoinNumberParts(First.BeforeDec, First.AfterDec);
+            this.SecondEnteredNumber = this.JoinNumberParts(Second.BeforeDec, Second.AfterDec);
+        }
+
+        /// <summary>
+        /// Собираем число обратно из десятичной и целой части, добавляя разделитель
+        /// </summary>
+        /// <param name="BeforeSep">Часть до разделителя (целая)</param>
+        /// <param name="AfterSep">Часть после разделителя (десятичная)</param>
+        /// <returns>Массив байтов представляющих коды ASCII цифр числа</returns>
+        private byte[] JoinNumberParts(byte[] BeforeSep, byte[] AfterSep)
+        {
+            byte[] Result = new byte[BeforeSep.Length + AfterSep.Length + 1];
+
+            BeforeSep.CopyTo(Result, 0);
+
+            byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
+
+            Result[BeforeSep.Length] = DecSep;
+
+            AfterSep.CopyTo(Result, BeforeSep.Length + 1);
+
+            return Result;
         }
 
         /// <summary>
