@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Windows.Forms;
 
 namespace Calculator
 {
@@ -26,8 +25,8 @@ namespace Calculator
             011 1001	071	57	39	9
 
         */
-        private const int NumbersStart = 48;
-        private const int NumbersEnd = 57;
+        private const byte NumbersStart = 48;
+        private const byte NumbersEnd = 57;
 
         /*
             ACTIONS
@@ -42,10 +41,10 @@ namespace Calculator
             011 1101	075	61	3D	=
          */
 
-        private const int ActionsStart = 42;
-        private const int ActionsEnd = 47;
+        private const byte ActionsStart = 42;
+        private const byte ActionsEnd = 47;
 
-        private const int ActionEquals = 61;
+        private const byte ActionEquals = 61;
 
         private enum ActionTypes
         {
@@ -226,7 +225,7 @@ namespace Calculator
             }
             else
             {
-                if (EnteredNumber[0] == 48 && !this.DecimalDividerUsed)
+                if (EnteredNumber[0] == NumbersStart && !this.DecimalDividerUsed)
                 {
                     EnteredNumber = new byte[1];
                     EnteredNumber[0] = CharNum;
@@ -345,40 +344,193 @@ namespace Calculator
             if (CharNum == ActionEquals)
             {
                 // Символ равно - выполняем действие над двумя числами
-                // если равно нажато до ввода вида действия - считаем ошибочным вводом
-                if (this.CurrentAction != ActionTypes.None)
-                {
-                    this.FirstEnteredNumber = this.PerformAction();
+                this.PerformAction();
+            }
+        }
 
-                    this.SetDefaults(this.MaxPlaces, true);
+        /// <summary>
+        /// Универсальный метод для вызова действия над двумя числами
+        /// </summary>
+        /// <returns></returns>
+        private void PerformAction()
+        {
+            // если равно нажато до ввода вида действия
+            // также если не введено первое или второе число
+            //  - считаем ошибочным вводом
+            if (this.FirstEnteredNumber.Length > 0 ||
+                this.SecondEnteredNumber.Length > 0)
+            {
+                switch (this.CurrentAction)
+                {
+                    case ActionTypes.Add:
+                        this.FirstEnteredNumber = this.Add();
+                        break;
+
+                    case ActionTypes.Subtract:
+                        // TODO
+                        break;
+
+                    case ActionTypes.Multiply:
+                        // TODO
+                        break;
+
+                    case ActionTypes.Divide:
+                        // TODO
+                        break;
+
+                    default:
+                        break;
                 }
             }
         }
 
-        private byte[] PerformAction()
+        /// <summary>
+        /// Операция сложения
+        /// </summary>
+        /// <returns>Массив байтов результата</returns>
+        private byte[] Add()
         {
             byte[] Result = new byte[] { };
 
-            switch (this.CurrentAction)
+            this.LevelUpNumbers();
+
+            this.SetDefaults(this.MaxPlaces, true);
+            return Result;
+        }
+
+        /// <summary>
+        /// Выравнивает числа
+        /// </summary>
+        private void LevelUpNumbers()
+        {
+            var First = this.SplitNumberBySeparator(this.FirstEnteredNumber);
+            var Second = this.SplitNumberBySeparator(this.SecondEnteredNumber);
+
+            if (First.BeforeDec.Length != Second.BeforeDec.Length)
             {
-                case ActionTypes.Add:
-                    // TODO
-                    break;
+                var BeforeZeroed = this.LevelNumberParts(First.BeforeDec, Second.BeforeDec, false);
+            }
 
-                case ActionTypes.Subtract:
-                    // TODO
-                    break;
+            if (First.AfterDec.Length != Second.AfterDec.Length)
+            {
+                var AfterZeroed = this.LevelNumberParts(First.AfterDec, Second.AfterDec, true);
+            }
+        }
 
-                case ActionTypes.Multiply:
-                    // TODO
-                    break;
+        /// <summary>
+        /// Разбивает число по десятичному разделителю на два массива
+        /// </summary>
+        /// <param name="EnteredNumber">Число которое нужно разбить</param>
+        /// <returns>Кортеж из двух массивов: до и после десятичного разделителя</returns>
+        private (byte[] BeforeDec, byte[] AfterDec) SplitNumberBySeparator(byte[] EnteredNumber)
+        {
+            byte[] Before = new byte[] { };
+            byte[] After = new byte[] { };
 
-                case ActionTypes.Divide:
-                    // TODO
-                    break;
+            int NonDecLenFirst = this.GetSepPosition(EnteredNumber);
 
-                default:
-                    break;
+            if (NonDecLenFirst >= 0)
+            {
+                Before = EnteredNumber.Take(NonDecLenFirst).ToArray();
+                After = EnteredNumber.Skip(NonDecLenFirst + 1).ToArray();
+            }
+            else
+            {
+                Before = EnteredNumber;
+            }
+
+            return (Before, After);
+        }
+
+        /// <summary>
+        /// Получает позицию десятичного разделителя в массиве байтов числа
+        /// </summary>
+        /// <param name="EnteredNumber">Число в котором происходит поиск разделителя</param>
+        /// <returns>Число индекс в массиве разделителя или -1 если разделитель не найден</returns>
+        private int GetSepPosition(byte[] EnteredNumber)
+        {
+            byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
+
+            return Array.IndexOf(EnteredNumber, DecSep);
+        }
+
+        /// <summary>
+        /// Выравнивает десятичные или целые части двух чисел
+        /// </summary>
+        /// <param name="First">Часть первого числа (десятичная или целая)</param>
+        /// <param name="Second">Часть второго числа (десятичная или целая) </param>
+        /// <param name="ZeroesAfter">Необходимо ли добавлять нули после имеющихся цифр меньшей по длине части? (для целой - нет, для десятичной - да)</param>
+        /// <returns>Кортеж из двух выравненных частей двух чисел</returns>
+        private (byte[] FRes, byte[] SRes) LevelNumberParts(byte[] First, byte[] Second, bool ZeroesAfter)
+        {
+            byte[] FirstRes = new byte[] { };
+            byte[] SecondRes = new byte[] { };
+
+            if (First.Length != Second.Length)
+            {
+                int Diff = First.Length - Second.Length;
+
+                if (Diff > 0)
+                {
+                    FirstRes = First;
+                    SecondRes = AddZeros(Diff, Second, ZeroesAfter);
+                }
+                else
+                {
+                    FirstRes = AddZeros(Diff, First, ZeroesAfter);
+                    SecondRes = Second;
+                }
+            }
+            else
+            {
+                FirstRes = First;
+                SecondRes = Second;
+            }
+
+            return (FirstRes, SecondRes);
+        }
+
+        /// <summary>
+        /// Добавляет необходимое число нулей с нужной стороны части числа (десятичной или целой)
+        /// </summary>
+        /// <param name="Diff">Разница между количеством цифр в части числа</param>
+        /// <param name="NumArr">Массив цифр дополняемого числа</param>
+        /// <param name="After">Нужно ли добавлять нули после массива цифр?</param>
+        /// <returns>Дополненный нулями массив цифр части числа</returns>
+        private byte[] AddZeros(int Diff, byte[] NumArr, bool After)
+        {
+            byte[] Result = new byte[] { };
+            byte[] Extended = this.CreateZerosArray(Math.Abs(Diff));
+
+            int AbsDiff = Math.Abs(Diff);
+            Result = new byte[NumArr.Length + AbsDiff];
+
+            if (After)
+            {
+                NumArr.CopyTo(Result, 0);
+                Extended.CopyTo(Result, NumArr.Length);
+            }
+            else
+            {
+                Extended.CopyTo(Result, 0);
+                NumArr.CopyTo(Result, AbsDiff);
+            }
+
+            return Result;
+        }
+
+        /// <summary>
+        /// Создаёт массив с заданным числом нулей
+        /// </summary>
+        /// <param name="ZerosCount">Количество нулей которые нужно добавить в массив</param>
+        /// <returns>Массив байтов с заданным числом нулей для выравнивания чисел</returns>
+        private byte[] CreateZerosArray(int ZerosCount)
+        {
+            byte[] Result = new byte[ZerosCount];
+
+            for (int i = 0; i <= ZerosCount - 1; i++)
+            {
+                Result[i] = NumbersStart;
             }
 
             return Result;
@@ -393,7 +545,7 @@ namespace Calculator
         {
             if (EnteredNumber.Length == 0)
             {
-                AddCharNum(48);
+                AddCharNum(NumbersStart);
                 AddCharNum(CharNum);
             }
             else
