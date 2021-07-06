@@ -62,7 +62,6 @@ namespace Calculator
 
         public byte[] FirstEnteredNumber { get; private set; }
         public byte[] SecondEnteredNumber { get; private set; }
-        public byte[] Result { get; private set; }
 
         public int MaxPlaces { get; private set; }
         public string DecSep { get; private set; }
@@ -88,9 +87,33 @@ namespace Calculator
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
         public CalculatorEngine(int MaxPlaces)
         {
-            this.FirstEnteredNumber = new byte[] { };
-            this.SecondEnteredNumber = new byte[] { };
-            this.Result = new byte[] { };
+            SetDefaults(MaxPlaces);
+        }
+
+        /// <summary>
+        /// Сбрасывает состояние калькулятора
+        /// </summary>
+        /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
+        /// <param name="ResetLastOnly">Сбрасывать только последнее число?</param>
+        private void SetDefaults(int MaxPlaces, bool ResetLastOnly = false)
+        {
+            if (ResetLastOnly)
+            {
+                if (this.CurrentAction == ActionTypes.None)
+                {
+                    this.FirstEnteredNumber = new byte[] { };
+                }
+                else
+                {
+                    this.SecondEnteredNumber = new byte[] { };
+                }
+            }
+            else
+            {
+                this.FirstEnteredNumber = new byte[] { };
+                this.SecondEnteredNumber = new byte[] { };
+            }
+
             this.MaxPlaces = MaxPlaces;
             this.DecSep = this.GetCurrentDecimalSeparator().ToString();
             this.CurrentAction = ActionTypes.None;
@@ -146,13 +169,12 @@ namespace Calculator
             switch (Mode)
             {
                 case "CE":
-                    this.SecondEnteredNumber = new byte[] { };
+                    this.SetDefaults(this.MaxPlaces, true);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
                     break;
 
                 case "C":
-                    this.FirstEnteredNumber = new byte[] { };
-                    this.SecondEnteredNumber = new byte[] { };
+                    this.SetDefaults(this.MaxPlaces);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
                     break;
 
@@ -195,8 +217,8 @@ namespace Calculator
         private (bool Reset, byte[] ResultNumber) AddCharToSelectedNumber(byte[] EnteredNumber, byte CharNum)
         {
             bool Reset;
-            int SecondLen = EnteredNumber.Length;
-            if (SecondLen == 0)
+            int NumLen = EnteredNumber.Length;
+            if (NumLen == 0)
             {
                 EnteredNumber = new byte[1];
                 EnteredNumber[0] = CharNum;
@@ -212,9 +234,9 @@ namespace Calculator
                 }
                 else
                 {
-                    byte[] ExpandedArr = new byte[SecondLen + 1];
+                    byte[] ExpandedArr = new byte[NumLen + 1];
                     EnteredNumber.CopyTo(ExpandedArr, 0);
-                    ExpandedArr[SecondLen] = CharNum;
+                    ExpandedArr[NumLen] = CharNum;
                     EnteredNumber = ExpandedArr;
                     Reset = false;
                 }
@@ -323,12 +345,43 @@ namespace Calculator
             if (CharNum == ActionEquals)
             {
                 // Символ равно - выполняем действие над двумя числами
+                // если равно нажато до ввода вида действия - считаем ошибочным вводом
+                if (this.CurrentAction != ActionTypes.None)
+                {
+                    this.FirstEnteredNumber = this.PerformAction();
 
-                // TODO
-
-                this.DecimalDividerUsed = false;
-                this.CurrentAction = ActionTypes.None;
+                    this.SetDefaults(this.MaxPlaces, true);
+                }
             }
+        }
+
+        private byte[] PerformAction()
+        {
+            byte[] Result = new byte[] { };
+
+            switch (this.CurrentAction)
+            {
+                case ActionTypes.Add:
+                    // TODO
+                    break;
+
+                case ActionTypes.Subtract:
+                    // TODO
+                    break;
+
+                case ActionTypes.Multiply:
+                    // TODO
+                    break;
+
+                case ActionTypes.Divide:
+                    // TODO
+                    break;
+
+                default:
+                    break;
+            }
+
+            return Result;
         }
 
         /// <summary>
@@ -368,7 +421,14 @@ namespace Calculator
         /// <returns>Истина - можно, Ложь - нельзя</returns>
         private bool CanExpandNumber()
         {
-            return this.FirstEnteredNumber.Length < this.MaxPlaces && this.SecondEnteredNumber.Length < this.MaxPlaces;
+            if (this.CurrentAction == ActionTypes.None)
+            {
+                return this.FirstEnteredNumber.Length < this.MaxPlaces;
+            }
+            else
+            {
+                return this.SecondEnteredNumber.Length < this.MaxPlaces;
+            }
         }
 
         /// <summary>

@@ -143,6 +143,9 @@ namespace Calculator
             newButton.Location = new Point(BasePosition.X + WidthBind * 4, BasePosition.Y);
         }
 
+        /// <summary>
+        /// Создаём кнопку для вызова очистки последнего числа в памяти калькулятора
+        /// </summary>
         private void AddClearLast()
         {
             Button newButton = CreateSetButtonFormatting("C");
@@ -152,6 +155,9 @@ namespace Calculator
             newButton.Location = new Point(BasePosition.X + WidthBind * 5, BasePosition.Y - WidthBind);
         }
 
+        /// <summary>
+        /// Создаём кнопку для вызова
+        /// </summary>
         private void AddClearAll()
         {
             Button newButton = CreateSetButtonFormatting("CE");
@@ -267,6 +273,18 @@ namespace Calculator
                         btn.Select();
                         btn.PerformClick();
                     }
+                }
+
+                if (KeyString == "\b" && btn.Text == "CE")
+                {
+                    btn.Select();
+                    btn.PerformClick();
+                }
+
+                if (KeyString.ToLower() == "c" && btn.Text == "C")
+                {
+                    btn.Select();
+                    btn.PerformClick();
                 }
 
                 if (btn.Text == KeyString)
