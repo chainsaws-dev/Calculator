@@ -543,7 +543,32 @@ namespace Calculator
 
             this.SetDefaults(this.MaxPlaces, this.NumberBase, true, true);
 
-            return Result;
+            return this.RemoveExtraZeroes(Result);
+        }
+
+        /// <summary>
+        /// Удаляет лишние нули после запятой
+        /// </summary>
+        /// <param name="Number">Число которое нужно почистить</param>
+        /// <returns>Число очищенное от лишних нулей</returns>
+        private byte[] RemoveExtraZeroes(byte[] Number)
+        {
+            var First = this.SplitNumberBySeparator(Number);
+
+            if (First.AfterDec.Length > 0)
+            {
+                foreach (byte CharNum in First.AfterDec)
+                {
+                    if (CharNum != NumbersStart)
+                    {
+                        return Number;
+                    }
+                }
+
+                return First.BeforeDec;
+            }
+
+            return Number;
         }
 
         /// <summary>
