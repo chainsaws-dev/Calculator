@@ -62,6 +62,8 @@ namespace Calculator
         public byte[] FirstEnteredNumber { get; private set; }
         public byte[] SecondEnteredNumber { get; private set; }
 
+        public int NumberBase { get; private set; }
+
         public int MaxPlaces { get; private set; }
         public string DecSep { get; private set; }
 
@@ -84,9 +86,9 @@ namespace Calculator
         /// Конструктор класса
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
-        public CalculatorEngine(int MaxPlaces)
+        public CalculatorEngine(int MaxPlaces, int NumberBase)
         {
-            SetDefaults(MaxPlaces);
+            SetDefaults(MaxPlaces, NumberBase);
         }
 
         /// <summary>
@@ -94,7 +96,7 @@ namespace Calculator
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
         /// <param name="ResetLastOnly">Сбрасывать только последнее число?</param>
-        private void SetDefaults(int MaxPlaces, bool ResetLastOnly = false)
+        private void SetDefaults(int MaxPlaces, int NumberBase, bool ResetLastOnly = false)
         {
             if (ResetLastOnly)
             {
@@ -113,6 +115,7 @@ namespace Calculator
                 this.SecondEnteredNumber = new byte[] { };
             }
 
+            this.NumberBase = NumberBase;
             this.MaxPlaces = MaxPlaces;
             this.DecSep = this.GetCurrentDecimalSeparator().ToString();
             this.CurrentAction = ActionTypes.None;
@@ -125,7 +128,7 @@ namespace Calculator
         /// <param name="NumberString">Строка содержащая в себе число</param>
         public void SetEnteredNumber(string NumberString)
         {
-            byte[] CharNums = GetStringBytes(NumberString);
+            byte[] CharNums = StringBytes(NumberString);
 
             ValidateEvaluate(CharNums);
         }
@@ -135,7 +138,7 @@ namespace Calculator
         /// </summary>
         /// <param name="NumberString">Строка содержащая в себе число</param>
         /// <returns>Массив чисел соответствующих символам</returns>
-        private byte[] GetStringBytes(string NumberString)
+        private byte[] StringBytes(string NumberString)
         {
             return Encoding.ASCII.GetBytes(NumberString.ToCharArray());
         }
@@ -145,7 +148,7 @@ namespace Calculator
         /// </summary>
         /// <param name="CharNums"></param>
         /// <returns>Строка из массива байтов</returns>
-        private string GetBytesString(byte[] CharNums)
+        private string BytesString(byte[] CharNums)
         {
             return Encoding.ASCII.GetString(CharNums);
         }
@@ -168,12 +171,12 @@ namespace Calculator
             switch (Mode)
             {
                 case "CE":
-                    this.SetDefaults(this.MaxPlaces, true);
+                    this.SetDefaults(this.MaxPlaces, this.NumberBase, true);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
                     break;
 
                 case "C":
-                    this.SetDefaults(this.MaxPlaces);
+                    this.SetDefaults(this.MaxPlaces, this.NumberBase);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
                     break;
 
@@ -280,7 +283,7 @@ namespace Calculator
         /// <returns></returns>
         private void IntervalCheckAndEvaluation(byte CharNum)
         {
-            if (CharNum >= NumbersStart && CharNum <= NumbersEnd)
+            if (CheckInNumberInterval(CharNum))
             {
                 if (CanExpandNumber())
                 {
@@ -289,7 +292,7 @@ namespace Calculator
                 }
             }
 
-            if (CharNum >= ActionsStart && CharNum <= ActionsEnd)
+            if (CheckIntervalAction(CharNum))
             {
                 // Символ является действием над числом
                 // или разделителем десятичных дробей
@@ -349,6 +352,26 @@ namespace Calculator
         }
 
         /// <summary>
+        /// Проверяет что код символа в пределах интервала цифр
+        /// </summary>
+        /// <param name="CharNum">Код символа ASCII</param>
+        /// <returns>Входит ли символ в интервал цифр</returns>
+        private bool CheckInNumberInterval(byte CharNum)
+        {
+            return CharNum >= NumbersStart && CharNum <= NumbersEnd;
+        }
+
+        /// <summary>
+        /// Проверяет что код символа в пределах интервала действий
+        /// </summary>
+        /// <param name="CharNum">Код символа ASCII</param>
+        /// <returns>Входит ли символ в интервал действий?</returns>
+        private bool CheckIntervalAction(byte CharNum)
+        {
+            return CharNum >= ActionsStart && CharNum <= ActionsEnd;
+        }
+
+        /// <summary>
         /// Универсальный метод для вызова действия над двумя числами
         /// </summary>
         /// <returns></returns>
@@ -357,13 +380,13 @@ namespace Calculator
             // если равно нажато до ввода вида действия
             // также если не введено первое или второе число
             //  - считаем ошибочным вводом
-            if (this.FirstEnteredNumber.Length > 0 ||
-                this.SecondEnteredNumber.Length > 0)
+            if (CheckNumbersEntered())
             {
                 switch (this.CurrentAction)
                 {
                     case ActionTypes.Add:
                         this.FirstEnteredNumber = this.Add();
+                        this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true));
                         break;
 
                     case ActionTypes.Subtract:
@@ -385,16 +408,65 @@ namespace Calculator
         }
 
         /// <summary>
-        /// Операция сложения
+        /// Проверяет что оба числа введены
+        /// </summary>
+        /// <returns>Заполнены ли данные двух чисел?</returns>
+        private bool CheckNumbersEntered()
+        {
+            return this.FirstEnteredNumber.Length > 0 && this.SecondEnteredNumber.Length > 0;
+        }
+
+        /// <summary>
+        /// Операция сложения (Числа должны быть выравнены)
         /// </summary>
         /// <returns>Массив байтов результата</returns>
         private byte[] Add()
         {
-            byte[] Result = new byte[] { };
+            byte[] Result = new byte[this.FirstEnteredNumber.Length];
 
             this.LevelUpNumbers();
 
-            this.SetDefaults(this.MaxPlaces, true);
+            int LeftOver = 0;
+
+            for (int i = this.FirstEnteredNumber.Length - 1; i >= 0; i--)
+            {
+                byte FirstCharNum = this.FirstEnteredNumber[i];
+                byte SecondCharNum = this.SecondEnteredNumber[i];
+
+                if (CheckInNumberInterval(FirstCharNum) && CheckInNumberInterval(SecondCharNum))
+                {
+                    // Игнорируем всё, кроме цифр
+                    int First = FirstCharNum - NumbersStart;
+                    int Second = SecondCharNum - NumbersStart;
+
+                    int Sum = First + Second + LeftOver;
+
+                    if (Sum > this.NumberBase - 1)
+                    {
+                        LeftOver = 1;
+                        Sum -= this.NumberBase;
+                    }
+                    else
+                    {
+                        LeftOver = 0;
+                    }
+
+                    Sum += NumbersStart;
+
+                    Result[i] = (byte)Sum;
+                }
+            }
+
+            if (LeftOver > 0)
+            {
+                byte[] ResExt = new byte[Result.Length + 1];
+                ResExt[0] = (byte)(LeftOver + NumbersStart);
+                Result.CopyTo(ResExt, 1);
+                Result = ResExt;
+            }
+
+            this.SetDefaults(this.MaxPlaces, this.NumberBase, true);
+
             return Result;
         }
 
