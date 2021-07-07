@@ -339,7 +339,7 @@ namespace Calculator
             {
                 // Символ является действием над числом
                 // или разделителем десятичных дробей
-                if (CharNum == 44 || CharNum == 46)
+                if (CheckDecSepAction(CharNum))
                 {
                     if (!this.DecimalDividerUsed && CanExpandNumber())
                     {
@@ -389,6 +389,7 @@ namespace Calculator
 
                     this.DecimalDividerUsed = false;
                     this.ResetInputDigits = false;
+
                     // TODO Добавить получение знака результата
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                 }
@@ -422,6 +423,16 @@ namespace Calculator
         }
 
         /// <summary>
+        /// Проверяет что код символа это десятичный разделитель
+        /// </summary>
+        /// <param name="CharNum">Код символа ASCII</param>
+        /// <returns>Является ли символ разделителем?</returns>
+        private bool CheckDecSepAction(byte CharNum)
+        {
+            return CharNum == 44 || CharNum == 46;
+        }
+
+        /// <summary>
         /// Универсальный метод для вызова действия над двумя числами
         /// </summary>
         /// <returns></returns>
@@ -435,9 +446,19 @@ namespace Calculator
                 switch (this.CurrentAction)
                 {
                     case ActionTypes.Add:
-                        this.FirstEnteredNumber = this.Add();
-                        // TODO Добавить получение знака результата
-                        this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, false));
+                        byte[] Result = this.Add();
+
+                        if (Result.Length > this.MaxPlaces)
+                        {
+                            this.OnValidInput?.Invoke(this, new ValidInputEventArgs("E", true, false));
+                        }
+                        else
+                        {
+                            // TODO Добавить получение знака результата
+                            this.FirstEnteredNumber = Result;
+                            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, false));
+                        }
+
                         break;
 
                     case ActionTypes.Subtract:
