@@ -60,7 +60,9 @@ namespace Calculator
         #region Свойства
 
         public byte[] FirstEnteredNumber { get; private set; }
+        public bool FirstEnteredNumberNegative { get; private set; }
         public byte[] SecondEnteredNumber { get; private set; }
+        public bool SecondEnteredNumberNegative { get; private set; }
 
         public int NumberBase { get; private set; }
 
@@ -79,6 +81,7 @@ namespace Calculator
 
         private ActionTypes CurrentAction;
         private bool DecimalDividerUsed;
+        private bool ResetInputDigits;
 
         #endregion Поля
 
@@ -96,23 +99,27 @@ namespace Calculator
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
         /// <param name="ResetLastOnly">Сбрасывать только последнее число?</param>
-        private void SetDefaults(int MaxPlaces, int NumberBase, bool ResetLastOnly = false)
+        private void SetDefaults(int MaxPlaces, int NumberBase, bool ResetLastOnly = false, bool ResetInputDigits = false)
         {
             if (ResetLastOnly)
             {
                 if (this.CurrentAction == ActionTypes.None)
                 {
                     this.FirstEnteredNumber = new byte[] { };
+                    this.FirstEnteredNumberNegative = false;
                 }
                 else
                 {
                     this.SecondEnteredNumber = new byte[] { };
+                    this.SecondEnteredNumberNegative = false;
                 }
             }
             else
             {
                 this.FirstEnteredNumber = new byte[] { };
+                this.FirstEnteredNumberNegative = false;
                 this.SecondEnteredNumber = new byte[] { };
+                this.SecondEnteredNumberNegative = false;
             }
 
             this.NumberBase = NumberBase;
@@ -120,6 +127,7 @@ namespace Calculator
             this.DecSep = this.GetCurrentDecimalSeparator().ToString();
             this.CurrentAction = ActionTypes.None;
             this.DecimalDividerUsed = false;
+            this.ResetInputDigits = ResetInputDigits;
         }
 
         /// <summary>
@@ -172,12 +180,12 @@ namespace Calculator
             {
                 case "CE":
                     this.SetDefaults(this.MaxPlaces, this.NumberBase, true);
-                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
                 case "C":
                     this.SetDefaults(this.MaxPlaces, this.NumberBase);
-                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
                 default:
@@ -194,20 +202,51 @@ namespace Calculator
         {
             bool Reset;
 
+            bool CurrentNegative;
+
             if (CurrentAction == ActionTypes.None)
             {
                 var Res = AddCharToSelectedNumber(this.FirstEnteredNumber, CharNum);
                 Reset = Res.Reset;
                 this.FirstEnteredNumber = Res.ResultNumber;
+
+                CurrentNegative = this.FirstEnteredNumberNegative;
             }
             else
             {
                 var Res = AddCharToSelectedNumber(this.SecondEnteredNumber, CharNum);
                 Reset = Res.Reset;
                 this.SecondEnteredNumber = Res.ResultNumber;
+
+                CurrentNegative = this.SecondEnteredNumberNegative;
             }
 
-            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset));
+            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset, CurrentNegative));
+        }
+
+        /// <summary>
+        /// Меняет знак текущего вводимого числа
+        /// </summary>
+        public void SwitchSignCurrentNumber()
+        {
+            if (CurrentAction == ActionTypes.None)
+            {
+                this.FirstEnteredNumberNegative = !this.FirstEnteredNumberNegative;
+
+                if (this.FirstEnteredNumber.Length > 0)
+                {
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, this.FirstEnteredNumberNegative));
+                }
+            }
+            else
+            {
+                this.SecondEnteredNumberNegative = !this.SecondEnteredNumberNegative;
+
+                if (this.SecondEnteredNumber.Length > 0)
+                {
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.SecondEnteredNumber), true, this.SecondEnteredNumberNegative));
+                }
+            }
         }
 
         /// <summary>
@@ -287,6 +326,10 @@ namespace Calculator
             {
                 if (CanExpandNumber())
                 {
+                    if (this.ResetInputDigits)
+                    {
+                        this.SetDefaults(this.MaxPlaces, this.NumberBase);
+                    }
                     // Символ является числом
                     AddCharNum(CharNum);
                 }
@@ -300,6 +343,11 @@ namespace Calculator
                 {
                     if (!this.DecimalDividerUsed && CanExpandNumber())
                     {
+                        if (this.ResetInputDigits)
+                        {
+                            this.SetDefaults(this.MaxPlaces, this.NumberBase);
+                        }
+
                         // Выводим разделители десятичных дробей
                         this.DecimalDividerUsed = true;
 
@@ -340,7 +388,9 @@ namespace Calculator
                     }
 
                     this.DecimalDividerUsed = false;
-                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true));
+                    this.ResetInputDigits = false;
+                    // TODO Добавить получение знака результата
+                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                 }
             }
 
@@ -386,7 +436,8 @@ namespace Calculator
                 {
                     case ActionTypes.Add:
                         this.FirstEnteredNumber = this.Add();
-                        this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true));
+                        // TODO Добавить получение знака результата
+                        this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, false));
                         break;
 
                     case ActionTypes.Subtract:
@@ -422,16 +473,16 @@ namespace Calculator
         /// <returns>Массив байтов результата</returns>
         private byte[] Add()
         {
-            byte[] Result = new byte[this.FirstEnteredNumber.Length];
+            var LeveledNumbers = this.LevelUpNumbers();
 
-            this.LevelUpNumbers();
+            byte[] Result = new byte[LeveledNumbers.First.Length];
 
             int LeftOver = 0;
 
-            for (int i = this.FirstEnteredNumber.Length - 1; i >= 0; i--)
+            for (int i = LeveledNumbers.First.Length - 1; i >= 0; i--)
             {
-                byte FirstCharNum = this.FirstEnteredNumber[i];
-                byte SecondCharNum = this.SecondEnteredNumber[i];
+                byte FirstCharNum = LeveledNumbers.First[i];
+                byte SecondCharNum = LeveledNumbers.Second[i];
 
                 if (CheckInNumberInterval(FirstCharNum) && CheckInNumberInterval(SecondCharNum))
                 {
@@ -455,6 +506,10 @@ namespace Calculator
 
                     Result[i] = (byte)Sum;
                 }
+                else
+                {
+                    Result[i] = FirstCharNum;
+                }
             }
 
             if (LeftOver > 0)
@@ -465,7 +520,7 @@ namespace Calculator
                 Result = ResExt;
             }
 
-            this.SetDefaults(this.MaxPlaces, this.NumberBase, true);
+            this.SetDefaults(this.MaxPlaces, this.NumberBase, true, true);
 
             return Result;
         }
@@ -473,7 +528,7 @@ namespace Calculator
         /// <summary>
         /// Выравнивает числа
         /// </summary>
-        private void LevelUpNumbers()
+        private (byte[] First, byte[] Second) LevelUpNumbers()
         {
             var First = this.SplitNumberBySeparator(this.FirstEnteredNumber);
             var Second = this.SplitNumberBySeparator(this.SecondEnteredNumber);
@@ -492,8 +547,7 @@ namespace Calculator
                 Second.AfterDec = AfterZeroed.SRes;
             }
 
-            this.FirstEnteredNumber = this.JoinNumberParts(First.BeforeDec, First.AfterDec);
-            this.SecondEnteredNumber = this.JoinNumberParts(Second.BeforeDec, Second.AfterDec);
+            return (this.JoinNumberParts(First.BeforeDec, First.AfterDec), this.JoinNumberParts(Second.BeforeDec, Second.AfterDec));
         }
 
         /// <summary>
@@ -504,17 +558,32 @@ namespace Calculator
         /// <returns>Массив байтов представляющих коды ASCII цифр числа</returns>
         private byte[] JoinNumberParts(byte[] BeforeSep, byte[] AfterSep)
         {
-            byte[] Result = new byte[BeforeSep.Length + AfterSep.Length + 1];
+            if (AfterSep.Length > 0 && BeforeSep.Length > 0)
+            {
+                byte[] Result = new byte[BeforeSep.Length + AfterSep.Length + 1];
 
-            BeforeSep.CopyTo(Result, 0);
+                BeforeSep.CopyTo(Result, 0);
 
-            byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
+                byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
 
-            Result[BeforeSep.Length] = DecSep;
+                Result[BeforeSep.Length] = DecSep;
 
-            AfterSep.CopyTo(Result, BeforeSep.Length + 1);
+                AfterSep.CopyTo(Result, BeforeSep.Length + 1);
 
-            return Result;
+                return Result;
+            }
+            else if (BeforeSep.Length > 0 && AfterSep.Length <= 0)
+            {
+                return BeforeSep;
+            }
+            else if (AfterSep.Length > 0 && BeforeSep.Length <= 0)
+            {
+                return AfterSep;
+            }
+            else
+            {
+                return new byte[] { };
+            }
         }
 
         /// <summary>

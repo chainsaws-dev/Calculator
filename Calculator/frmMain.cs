@@ -46,6 +46,8 @@ namespace Calculator
                 }
             }
 
+            AddSwitchSign();
+
             AddZero();
 
             AddDecimalDelimiter();
@@ -72,7 +74,14 @@ namespace Calculator
         {
             Button newButton = CreateSetButtonFormatting("0");
 
-            newButton.Width *= 2;
+            newButton.Location = new Point(BasePosition.X + WidthBind, BasePosition.Y + WidthBind);
+        }
+
+        private void AddSwitchSign()
+        {
+            Button newButton = CreateSetButtonFormatting("+/-");
+
+            newButton.Font = new Font(FontFamily.GenericSansSerif, 24);
 
             newButton.Location = new Point(BasePosition.X, BasePosition.Y + WidthBind);
         }
@@ -235,6 +244,10 @@ namespace Calculator
             {
                 this.CalcEngine.ClearEnteredNumbers(ClickedBtn.Text);
             }
+            else if (ClickedBtn.Text == "+/-")
+            {
+                this.CalcEngine.SwitchSignCurrentNumber();
+            }
             else
             {
                 this.CalcEngine.ExpandEnteredNumber(ClickedBtn.Text.ToCharArray()[0]);
@@ -252,7 +265,15 @@ namespace Calculator
             {
                 LabelForResult.Text = "";
             }
-            LabelForResult.Text += e.ValidCharacter;
+
+            if (e.NumberNegative)
+            {
+                LabelForResult.Text = "-" + LabelForResult.Text.Replace("-", "") + e.ValidCharacter;
+            }
+            else
+            {
+                LabelForResult.Text = LabelForResult.Text.Replace("-", "") + e.ValidCharacter;
+            }
         }
 
         /// <summary>

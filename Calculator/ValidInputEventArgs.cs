@@ -12,10 +12,13 @@ namespace Calculator
 
         public bool ResetInput { get; private set; }
 
-        public ValidInputEventArgs(string ValidCharacter, bool ResetInput)
+        public bool NumberNegative { get; private set; }
+
+        public ValidInputEventArgs(string ValidCharacter, bool ResetInput, bool NumberNegative)
         {
             this.ValidCharacter = ValidCharacter;
             this.ResetInput = ResetInput;
+            this.NumberNegative = NumberNegative;
         }
     }
 }
