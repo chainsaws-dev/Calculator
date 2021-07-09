@@ -29,7 +29,11 @@ namespace Calculator
         /// <param name="e">Аргументы события</param>
         private void frmMain_Load(object sender, EventArgs e)
         {
-            this.CalcEngine = new CalculatorEngine(20, 10);
+            var SupportedOperations = new ICalculatorAction[] {
+                new CalculatorActionAdd()
+            };
+
+            this.CalcEngine = new CalculatorEngine(20, 10, SupportedOperations);
             this.CalcEngine.OnValidInput += OnValidCharInput;
             this.WidthBind = (this.Size.Width - 22) / 6;
 

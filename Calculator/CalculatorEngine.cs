@@ -1,32 +1,10 @@
 ﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading;
 
 namespace Calculator
 {
     internal class CalculatorEngine
     {
         #region Константы
-
-        /*
-            NUMBERS
-
-            Binary	    Oct	Dec	Hex
-            011 0000	060	48	30	0
-            011 0001	061	49	31	1
-            011 0010	062	50	32	2
-            011 0011	063	51	33	3
-            011 0100	064	52	34	4
-            011 0101	065	53	35	5
-            011 0110	066	54	36	6
-            011 0111	067	55	37	7
-            011 1000	070	56	38	8
-            011 1001	071	57	39	9
-
-        */
-        private const byte NumbersStart = 48;
-        private const byte NumbersEnd = 57;
 
         /*
             ACTIONS
@@ -41,28 +19,18 @@ namespace Calculator
             011 1101	075	61	3D	=
          */
 
-        private const byte ActionsStart = 42;
-        private const byte ActionsEnd = 47;
+        public const byte ActionsStart = 42;
+        public const byte ActionsEnd = 47;
 
-        private const byte ActionEquals = 61;
-
-        private enum ActionTypes
-        {
-            Add = 1,
-            Subtract,
-            Multiply,
-            Divide,
-            None
-        }
+        public const byte ActionEquals = 61;
 
         #endregion Константы
 
         #region Свойства
 
-        public byte[] FirstEnteredNumber { get; private set; }
-        public bool FirstEnteredNumberNegative { get; private set; }
-        public byte[] SecondEnteredNumber { get; private set; }
-        public bool SecondEnteredNumberNegative { get; private set; }
+        public EnteredNumber First { get; private set; }
+        public EnteredNumber Second { get; private set; }
+        public ICalculatorAction[] SupportedActions { get; private set; }
 
         public int NumberBase { get; private set; }
 
@@ -79,7 +47,7 @@ namespace Calculator
 
         #region Поля
 
-        private ActionTypes CurrentAction;
+        private byte CurrentAction;
         private bool DecimalDividerUsed;
         private bool ResetInputDigits;
 
@@ -89,9 +57,10 @@ namespace Calculator
         /// Конструктор класса
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
-        public CalculatorEngine(int MaxPlaces, int NumberBase)
+        /// <param name="NumberBase">Основание системы счисления</param>
+        public CalculatorEngine(int MaxPlaces, int NumberBase, ICalculatorAction[] SupportedActions)
         {
-            SetDefaults(MaxPlaces, NumberBase);
+            SetDefaults(MaxPlaces, NumberBase, SupportedActions);
         }
 
         /// <summary>
@@ -99,33 +68,30 @@ namespace Calculator
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
         /// <param name="ResetLastOnly">Сбрасывать только последнее число?</param>
-        private void SetDefaults(int MaxPlaces, int NumberBase, bool ResetLastOnly = false, bool ResetInputDigits = false)
+        public void SetDefaults(int MaxPlaces, int NumberBase, ICalculatorAction[] SupportedActions, bool ResetLastOnly = false, bool ResetInputDigits = false)
         {
             if (ResetLastOnly)
             {
-                if (this.CurrentAction == ActionTypes.None)
+                if (this.CurrentAction == 0)
                 {
-                    this.FirstEnteredNumber = new byte[] { };
-                    this.FirstEnteredNumberNegative = false;
+                    this.First = new EnteredNumber();
                 }
                 else
                 {
-                    this.SecondEnteredNumber = new byte[] { };
-                    this.SecondEnteredNumberNegative = false;
+                    this.Second = new EnteredNumber();
                 }
             }
             else
             {
-                this.FirstEnteredNumber = new byte[] { };
-                this.FirstEnteredNumberNegative = false;
-                this.SecondEnteredNumber = new byte[] { };
-                this.SecondEnteredNumberNegative = false;
+                this.First = new EnteredNumber();
+                this.Second = new EnteredNumber();
             }
 
+            this.SupportedActions = SupportedActions;
             this.NumberBase = NumberBase;
             this.MaxPlaces = MaxPlaces;
-            this.DecSep = this.GetCurrentDecimalSeparator().ToString();
-            this.CurrentAction = ActionTypes.None;
+            this.DecSep = EnteredNumber.GetCurrentDecimalSeparator().ToString();
+            this.CurrentAction = 0;
             this.DecimalDividerUsed = false;
             this.ResetInputDigits = ResetInputDigits;
         }
@@ -136,29 +102,9 @@ namespace Calculator
         /// <param name="NumberString">Строка содержащая в себе число</param>
         public void SetEnteredNumber(string NumberString)
         {
-            byte[] CharNums = StringBytes(NumberString);
+            byte[] CharNums = EnteredNumber.StringBytes(NumberString);
 
             ValidateEvaluate(CharNums);
-        }
-
-        /// <summary>
-        /// Преобразует строку в массив чисел соответствующих символам из таблицы ASCII
-        /// </summary>
-        /// <param name="NumberString">Строка содержащая в себе число</param>
-        /// <returns>Массив чисел соответствующих символам</returns>
-        private byte[] StringBytes(string NumberString)
-        {
-            return Encoding.ASCII.GetBytes(NumberString.ToCharArray());
-        }
-
-        /// <summary>
-        /// Преобразует данные массива байтов в строку
-        /// </summary>
-        /// <param name="CharNums"></param>
-        /// <returns>Строка из массива байтов</returns>
-        private string BytesString(byte[] CharNums)
-        {
-            return Encoding.ASCII.GetString(CharNums);
         }
 
         /// <summary>
@@ -167,7 +113,7 @@ namespace Calculator
         /// <param name="NewChar">Символ введённый пользователем</param>
         public void ExpandEnteredNumber(char NewChar)
         {
-            this.ValidateEvaluate(CharByte(NewChar));
+            this.ValidateEvaluate(EnteredNumber.CharByte(NewChar));
         }
 
         /// <summary>
@@ -179,12 +125,12 @@ namespace Calculator
             switch (Mode)
             {
                 case "CE":
-                    this.SetDefaults(this.MaxPlaces, this.NumberBase, true);
+                    this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions, true);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
                 case "C":
-                    this.SetDefaults(this.MaxPlaces, this.NumberBase);
+                    this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
@@ -200,28 +146,30 @@ namespace Calculator
         /// <param name="CharNum">Код ASCII цифры или символа</param>
         private void AddCharNum(byte CharNum)
         {
-            bool Reset;
-
-            bool CurrentNegative;
-
-            if (CurrentAction == ActionTypes.None)
+            if (CurrentAction == 0)
             {
-                var Res = AddCharToSelectedNumber(this.FirstEnteredNumber, CharNum);
-                Reset = Res.Reset;
-                this.FirstEnteredNumber = Res.ResultNumber;
-
-                CurrentNegative = this.FirstEnteredNumberNegative;
+                this.OnValidInput?.Invoke(this, First.AddChar(CharNum, this.DecimalDividerUsed));
             }
             else
             {
-                var Res = AddCharToSelectedNumber(this.SecondEnteredNumber, CharNum);
-                Reset = Res.Reset;
-                this.SecondEnteredNumber = Res.ResultNumber;
-
-                CurrentNegative = this.SecondEnteredNumberNegative;
+                this.OnValidInput?.Invoke(this, Second.AddChar(CharNum, this.DecimalDividerUsed));
             }
+        }
 
-            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(ByteChar(CharNum), Reset, CurrentNegative));
+        /// <summary>
+        /// Добавляет десятичный разделитель в число
+        /// </summary>
+        /// <param name="CharNum">Код ASCII разделителя</param>
+        private void AddDecSep(byte CharNum)
+        {
+            if (this.CurrentAction == 0)
+            {
+                this.OnValidInput?.Invoke(this, this.First.AddDecSep(CharNum, this.DecimalDividerUsed));
+            }
+            else
+            {
+                this.OnValidInput?.Invoke(this, this.Second.AddDecSep(CharNum, this.DecimalDividerUsed));
+            }
         }
 
         /// <summary>
@@ -229,81 +177,33 @@ namespace Calculator
         /// </summary>
         public void SwitchSignCurrentNumber()
         {
-            if (CurrentAction == ActionTypes.None)
+            if (CurrentAction == 0)
             {
-                this.FirstEnteredNumberNegative = !this.FirstEnteredNumberNegative;
-
-                if (this.FirstEnteredNumber.Length > 0)
+                if (!this.First.IsEmpty())
                 {
-                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, this.FirstEnteredNumberNegative));
+                    this.OnValidInput?.Invoke(this, this.First.SwitchNegative());
                 }
             }
             else
             {
-                this.SecondEnteredNumberNegative = !this.SecondEnteredNumberNegative;
-
-                if (this.SecondEnteredNumber.Length > 0)
+                if (!this.Second.IsEmpty())
                 {
-                    this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.SecondEnteredNumber), true, this.SecondEnteredNumberNegative));
+                    this.OnValidInput?.Invoke(this, this.Second.SwitchNegative());
                 }
             }
         }
 
         /// <summary>
-        /// Добавляет в выбранное число (первое или второе в операции)
+        /// Проверяет, что все коды символов в переданной строке относятся к поддерживаемым
         /// </summary>
-        /// <param name="EnteredNumber">Изменяемый массив байтов</param>
-        /// <param name="CharNum">Код ASCII цифры</param>
-        /// <returns></returns>
-        private (bool Reset, byte[] ResultNumber) AddCharToSelectedNumber(byte[] EnteredNumber, byte CharNum)
+        /// <param name="CharNums">Массив кодов символов строки</param>
+        /// <returns>Истина - если относятся, Ложь - если не относятся</returns>
+        private void ValidateEvaluate(byte[] CharNums)
         {
-            bool Reset;
-            int NumLen = EnteredNumber.Length;
-            if (NumLen == 0)
+            foreach (byte CharNum in CharNums)
             {
-                EnteredNumber = new byte[1];
-                EnteredNumber[0] = CharNum;
-                Reset = true;
+                IntervalCheckAndEvaluation(CharNum);
             }
-            else
-            {
-                if (EnteredNumber[0] == NumbersStart && !this.DecimalDividerUsed)
-                {
-                    EnteredNumber = new byte[1];
-                    EnteredNumber[0] = CharNum;
-                    Reset = true;
-                }
-                else
-                {
-                    byte[] ExpandedArr = new byte[NumLen + 1];
-                    EnteredNumber.CopyTo(ExpandedArr, 0);
-                    ExpandedArr[NumLen] = CharNum;
-                    EnteredNumber = ExpandedArr;
-                    Reset = false;
-                }
-            }
-
-            return (Reset, EnteredNumber);
-        }
-
-        /// <summary>
-        /// Получает число соответствующее символу из таблицы ASCII
-        /// </summary>
-        /// <param name="NewChar"></param>
-        /// <returns>Число соответствующее символу</returns>
-        private byte CharByte(char NewChar)
-        {
-            return Encoding.ASCII.GetBytes(new char[1] { NewChar })[0];
-        }
-
-        /// <summary>
-        /// Получает строку (символ) по числу из таблицы ASCII
-        /// </summary>
-        /// <param name="CharNum">Число из таблицы ASCII</param>
-        /// <returns>Строка из одного символа</returns>
-        private string ByteChar(byte CharNum)
-        {
-            return Encoding.ASCII.GetString(new byte[1] { CharNum });
         }
 
         /// <summary>
@@ -322,13 +222,13 @@ namespace Calculator
         /// <returns></returns>
         private void IntervalCheckAndEvaluation(byte CharNum)
         {
-            if (CheckInNumberInterval(CharNum))
+            if (EnteredNumber.CheckInNumberInterval(CharNum))
             {
                 if (CanExpandNumber())
                 {
                     if (this.ResetInputDigits)
                     {
-                        this.SetDefaults(this.MaxPlaces, this.NumberBase);
+                        this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
                     }
                     // Символ является числом
                     AddCharNum(CharNum);
@@ -339,58 +239,29 @@ namespace Calculator
             {
                 // Символ является действием над числом
                 // или разделителем десятичных дробей
-                if (CheckDecSepAction(CharNum))
+                if (EnteredNumber.CheckDecSepAction(CharNum))
                 {
                     if (!this.DecimalDividerUsed && CanExpandNumber())
                     {
                         if (this.ResetInputDigits)
                         {
-                            this.SetDefaults(this.MaxPlaces, this.NumberBase);
+                            this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
                         }
 
                         // Выводим разделители десятичных дробей
                         this.DecimalDividerUsed = true;
 
-                        if (this.CurrentAction == ActionTypes.None)
-                        {
-                            CheckLengthAndAddDecSep(this.FirstEnteredNumber, CharNum);
-                        }
-                        else
-                        {
-                            CheckLengthAndAddDecSep(this.SecondEnteredNumber, CharNum);
-                        }
+                        AddDecSep(CharNum);
                     }
                 }
                 else
                 {
                     // Остальные действия устанавливают режим ввода второго числа
-                    switch (CharNum)
-                    {
-                        case 42:
-                            this.CurrentAction = ActionTypes.Multiply;
-                            break;
-
-                        case 43:
-                            this.CurrentAction = ActionTypes.Add;
-                            break;
-
-                        case 45:
-                            this.CurrentAction = ActionTypes.Subtract;
-                            break;
-
-                        case 47:
-                            this.CurrentAction = ActionTypes.Divide;
-                            break;
-
-                        default:
-                            new ArgumentOutOfRangeException("CharNum", CharNum, "Core failure: Character number out of range");
-                            break;
-                    }
+                    this.CurrentAction = CharNum;
 
                     this.DecimalDividerUsed = false;
                     this.ResetInputDigits = false;
 
-                    // TODO Добавить получение знака результата
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                 }
             }
@@ -403,13 +274,17 @@ namespace Calculator
         }
 
         /// <summary>
-        /// Проверяет что код символа в пределах интервала цифр
+        /// Для поддержки прочих операций которые возможно придётся добавить в будущем
         /// </summary>
-        /// <param name="CharNum">Код символа ASCII</param>
-        /// <returns>Входит ли символ в интервал цифр</returns>
-        private bool CheckInNumberInterval(byte CharNum)
+        /// <param name="SpecialActionID">Число идентификатор команды больше 100 именьше 256</param>
+        public void SetSpecialAction(byte SpecialActionID)
         {
-            return CharNum >= NumbersStart && CharNum <= NumbersEnd;
+            this.CurrentAction = SpecialActionID;
+
+            this.DecimalDividerUsed = false;
+            this.ResetInputDigits = false;
+
+            this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
         }
 
         /// <summary>
@@ -423,16 +298,6 @@ namespace Calculator
         }
 
         /// <summary>
-        /// Проверяет что код символа это десятичный разделитель
-        /// </summary>
-        /// <param name="CharNum">Код символа ASCII</param>
-        /// <returns>Является ли символ разделителем?</returns>
-        private bool CheckDecSepAction(byte CharNum)
-        {
-            return CharNum == 44 || CharNum == 46;
-        }
-
-        /// <summary>
         /// Универсальный метод для вызова действия над двумя числами
         /// </summary>
         /// <returns></returns>
@@ -443,38 +308,25 @@ namespace Calculator
             //  - считаем ошибочным вводом
             if (CheckNumbersEntered())
             {
-                switch (this.CurrentAction)
-                {
-                    case ActionTypes.Add:
-                        byte[] Result = this.Add();
+                EnteredNumber Result;
 
-                        if (Result.Length > this.MaxPlaces)
+                foreach (ICalculatorAction ca in this.SupportedActions)
+                {
+                    if (ca.GetCharNum() == this.CurrentAction)
+                    {
+                        Result = ca.PerformAction(this, this.First, this.Second);
+
+                        if (Result.Number.Length > this.MaxPlaces)
                         {
                             this.OnValidInput?.Invoke(this, new ValidInputEventArgs("E", true, false));
                         }
                         else
                         {
                             // TODO Добавить получение знака результата
-                            this.FirstEnteredNumber = Result;
-                            this.OnValidInput?.Invoke(this, new ValidInputEventArgs(BytesString(this.FirstEnteredNumber), true, false));
+                            this.First = Result;
+                            this.OnValidInput?.Invoke(this, this.First.ToValidInputArgsFull(true));
                         }
-
-                        break;
-
-                    case ActionTypes.Subtract:
-                        // TODO
-                        break;
-
-                    case ActionTypes.Multiply:
-                        // TODO
-                        break;
-
-                    case ActionTypes.Divide:
-                        // TODO
-                        break;
-
-                    default:
-                        break;
+                    }
                 }
             }
         }
@@ -485,301 +337,7 @@ namespace Calculator
         /// <returns>Заполнены ли данные двух чисел?</returns>
         private bool CheckNumbersEntered()
         {
-            return this.FirstEnteredNumber.Length > 0 && this.SecondEnteredNumber.Length > 0;
-        }
-
-        /// <summary>
-        /// Операция сложения (Числа должны быть выравнены)
-        /// </summary>
-        /// <returns>Массив байтов результата</returns>
-        private byte[] Add()
-        {
-            var LeveledNumbers = this.LevelUpNumbers();
-
-            byte[] Result = new byte[LeveledNumbers.First.Length];
-
-            int LeftOver = 0;
-
-            for (int i = LeveledNumbers.First.Length - 1; i >= 0; i--)
-            {
-                byte FirstCharNum = LeveledNumbers.First[i];
-                byte SecondCharNum = LeveledNumbers.Second[i];
-
-                if (CheckInNumberInterval(FirstCharNum) && CheckInNumberInterval(SecondCharNum))
-                {
-                    // Игнорируем всё, кроме цифр
-                    int First = FirstCharNum - NumbersStart;
-                    int Second = SecondCharNum - NumbersStart;
-
-                    int Sum = First + Second + LeftOver;
-
-                    if (Sum > this.NumberBase - 1)
-                    {
-                        LeftOver = 1;
-                        Sum -= this.NumberBase;
-                    }
-                    else
-                    {
-                        LeftOver = 0;
-                    }
-
-                    Sum += NumbersStart;
-
-                    Result[i] = (byte)Sum;
-                }
-                else
-                {
-                    Result[i] = FirstCharNum;
-                }
-            }
-
-            if (LeftOver > 0)
-            {
-                byte[] ResExt = new byte[Result.Length + 1];
-                ResExt[0] = (byte)(LeftOver + NumbersStart);
-                Result.CopyTo(ResExt, 1);
-                Result = ResExt;
-            }
-
-            this.SetDefaults(this.MaxPlaces, this.NumberBase, true, true);
-
-            return this.RemoveExtraZeroes(Result);
-        }
-
-        /// <summary>
-        /// Удаляет лишние нули после запятой
-        /// </summary>
-        /// <param name="Number">Число которое нужно почистить</param>
-        /// <returns>Число очищенное от лишних нулей</returns>
-        private byte[] RemoveExtraZeroes(byte[] Number)
-        {
-            var First = this.SplitNumberBySeparator(Number);
-
-            if (First.AfterDec.Length > 0)
-            {
-                foreach (byte CharNum in First.AfterDec)
-                {
-                    if (CharNum != NumbersStart)
-                    {
-                        return Number;
-                    }
-                }
-
-                return First.BeforeDec;
-            }
-
-            return Number;
-        }
-
-        /// <summary>
-        /// Выравнивает числа
-        /// </summary>
-        private (byte[] First, byte[] Second) LevelUpNumbers()
-        {
-            var First = this.SplitNumberBySeparator(this.FirstEnteredNumber);
-            var Second = this.SplitNumberBySeparator(this.SecondEnteredNumber);
-
-            if (First.BeforeDec.Length != Second.BeforeDec.Length)
-            {
-                var BeforeZeroed = this.LevelNumberParts(First.BeforeDec, Second.BeforeDec, false);
-                First.BeforeDec = BeforeZeroed.FRes;
-                Second.BeforeDec = BeforeZeroed.SRes;
-            }
-
-            if (First.AfterDec.Length != Second.AfterDec.Length)
-            {
-                var AfterZeroed = this.LevelNumberParts(First.AfterDec, Second.AfterDec, true);
-                First.AfterDec = AfterZeroed.FRes;
-                Second.AfterDec = AfterZeroed.SRes;
-            }
-
-            return (this.JoinNumberParts(First.BeforeDec, First.AfterDec), this.JoinNumberParts(Second.BeforeDec, Second.AfterDec));
-        }
-
-        /// <summary>
-        /// Собираем число обратно из десятичной и целой части, добавляя разделитель
-        /// </summary>
-        /// <param name="BeforeSep">Часть до разделителя (целая)</param>
-        /// <param name="AfterSep">Часть после разделителя (десятичная)</param>
-        /// <returns>Массив байтов представляющих коды ASCII цифр числа</returns>
-        private byte[] JoinNumberParts(byte[] BeforeSep, byte[] AfterSep)
-        {
-            if (AfterSep.Length > 0 && BeforeSep.Length > 0)
-            {
-                byte[] Result = new byte[BeforeSep.Length + AfterSep.Length + 1];
-
-                BeforeSep.CopyTo(Result, 0);
-
-                byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
-
-                Result[BeforeSep.Length] = DecSep;
-
-                AfterSep.CopyTo(Result, BeforeSep.Length + 1);
-
-                return Result;
-            }
-            else if (BeforeSep.Length > 0 && AfterSep.Length <= 0)
-            {
-                return BeforeSep;
-            }
-            else if (AfterSep.Length > 0 && BeforeSep.Length <= 0)
-            {
-                return AfterSep;
-            }
-            else
-            {
-                return new byte[] { };
-            }
-        }
-
-        /// <summary>
-        /// Разбивает число по десятичному разделителю на два массива
-        /// </summary>
-        /// <param name="EnteredNumber">Число которое нужно разбить</param>
-        /// <returns>Кортеж из двух массивов: до и после десятичного разделителя</returns>
-        private (byte[] BeforeDec, byte[] AfterDec) SplitNumberBySeparator(byte[] EnteredNumber)
-        {
-            byte[] Before = new byte[] { };
-            byte[] After = new byte[] { };
-
-            int NonDecLenFirst = this.GetSepPosition(EnteredNumber);
-
-            if (NonDecLenFirst >= 0)
-            {
-                Before = EnteredNumber.Take(NonDecLenFirst).ToArray();
-                After = EnteredNumber.Skip(NonDecLenFirst + 1).ToArray();
-            }
-            else
-            {
-                Before = EnteredNumber;
-            }
-
-            return (Before, After);
-        }
-
-        /// <summary>
-        /// Получает позицию десятичного разделителя в массиве байтов числа
-        /// </summary>
-        /// <param name="EnteredNumber">Число в котором происходит поиск разделителя</param>
-        /// <returns>Число индекс в массиве разделителя или -1 если разделитель не найден</returns>
-        private int GetSepPosition(byte[] EnteredNumber)
-        {
-            byte DecSep = this.CharByte(this.GetCurrentDecimalSeparator());
-
-            return Array.IndexOf(EnteredNumber, DecSep);
-        }
-
-        /// <summary>
-        /// Выравнивает десятичные или целые части двух чисел
-        /// </summary>
-        /// <param name="First">Часть первого числа (десятичная или целая)</param>
-        /// <param name="Second">Часть второго числа (десятичная или целая) </param>
-        /// <param name="ZeroesAfter">Необходимо ли добавлять нули после имеющихся цифр меньшей по длине части? (для целой - нет, для десятичной - да)</param>
-        /// <returns>Кортеж из двух выравненных частей двух чисел</returns>
-        private (byte[] FRes, byte[] SRes) LevelNumberParts(byte[] First, byte[] Second, bool ZeroesAfter)
-        {
-            byte[] FirstRes = new byte[] { };
-            byte[] SecondRes = new byte[] { };
-
-            if (First.Length != Second.Length)
-            {
-                int Diff = First.Length - Second.Length;
-
-                if (Diff > 0)
-                {
-                    FirstRes = First;
-                    SecondRes = AddZeros(Diff, Second, ZeroesAfter);
-                }
-                else
-                {
-                    FirstRes = AddZeros(Diff, First, ZeroesAfter);
-                    SecondRes = Second;
-                }
-            }
-            else
-            {
-                FirstRes = First;
-                SecondRes = Second;
-            }
-
-            return (FirstRes, SecondRes);
-        }
-
-        /// <summary>
-        /// Добавляет необходимое число нулей с нужной стороны части числа (десятичной или целой)
-        /// </summary>
-        /// <param name="Diff">Разница между количеством цифр в части числа</param>
-        /// <param name="NumArr">Массив цифр дополняемого числа</param>
-        /// <param name="After">Нужно ли добавлять нули после массива цифр?</param>
-        /// <returns>Дополненный нулями массив цифр части числа</returns>
-        private byte[] AddZeros(int Diff, byte[] NumArr, bool After)
-        {
-            byte[] Result = new byte[] { };
-            byte[] Extended = this.CreateZerosArray(Math.Abs(Diff));
-
-            int AbsDiff = Math.Abs(Diff);
-            Result = new byte[NumArr.Length + AbsDiff];
-
-            if (After)
-            {
-                NumArr.CopyTo(Result, 0);
-                Extended.CopyTo(Result, NumArr.Length);
-            }
-            else
-            {
-                Extended.CopyTo(Result, 0);
-                NumArr.CopyTo(Result, AbsDiff);
-            }
-
-            return Result;
-        }
-
-        /// <summary>
-        /// Создаёт массив с заданным числом нулей
-        /// </summary>
-        /// <param name="ZerosCount">Количество нулей которые нужно добавить в массив</param>
-        /// <returns>Массив байтов с заданным числом нулей для выравнивания чисел</returns>
-        private byte[] CreateZerosArray(int ZerosCount)
-        {
-            byte[] Result = new byte[ZerosCount];
-
-            for (int i = 0; i <= ZerosCount - 1; i++)
-            {
-                Result[i] = NumbersStart;
-            }
-
-            return Result;
-        }
-
-        /// <summary>
-        /// Проверяет что вводится первый символ и если это разделитель десятичных знаков то выводит ещё ноль
-        /// </summary>
-        /// <param name="EnteredNumber">Массив byte с кодами символов</param>
-        /// <param name="CharNum">Номер вводимого символа</param>
-        private void CheckLengthAndAddDecSep(byte[] EnteredNumber, byte CharNum)
-        {
-            if (EnteredNumber.Length == 0)
-            {
-                AddCharNum(NumbersStart);
-                AddCharNum(CharNum);
-            }
-            else
-            {
-                AddCharNum(CharNum);
-            }
-        }
-
-        /// <summary>
-        /// Проверяет, что все коды символов в переданной строке относятся к поддерживаемым
-        /// </summary>
-        /// <param name="CharNums">Массив кодов символов строки</param>
-        /// <returns>Истина - если относятся, Ложь - если не относятся</returns>
-        private void ValidateEvaluate(byte[] CharNums)
-        {
-            foreach (byte CharNum in CharNums)
-            {
-                IntervalCheckAndEvaluation(CharNum);
-            }
+            return this.First.Number.Length > 0 && this.Second.Number.Length > 0;
         }
 
         /// <summary>
@@ -788,23 +346,14 @@ namespace Calculator
         /// <returns>Истина - можно, Ложь - нельзя</returns>
         private bool CanExpandNumber()
         {
-            if (this.CurrentAction == ActionTypes.None)
+            if (this.CurrentAction == 0)
             {
-                return this.FirstEnteredNumber.Length < this.MaxPlaces;
+                return this.First.Number.Length < this.MaxPlaces;
             }
             else
             {
-                return this.SecondEnteredNumber.Length < this.MaxPlaces;
+                return this.Second.Number.Length < this.MaxPlaces;
             }
-        }
-
-        /// <summary>
-        /// Получае из региональных настроек значение десятичного разделителя
-        /// </summary>
-        /// <returns>Символ десятичного разделителя</returns>
-        private char GetCurrentDecimalSeparator()
-        {
-            return Convert.ToChar(Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator);
         }
     }
 }
