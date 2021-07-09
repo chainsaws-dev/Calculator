@@ -76,8 +76,6 @@ namespace Calculator
                 Result = new EnteredNumber(ResExt, false);
             }
 
-            Engine.SetDefaults(Engine.MaxPlaces, Engine.NumberBase, Engine.SupportedActions, true, true);
-
             return ActionsShared.RemoveExtraZeroes(Result);
         }
     }

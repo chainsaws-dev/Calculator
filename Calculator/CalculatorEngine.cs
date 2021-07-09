@@ -64,11 +64,24 @@ namespace Calculator
         }
 
         /// <summary>
-        /// Сбрасывает состояние калькулятора
+        /// Выполняет сброс калькулятора
+        /// </summary>
+        /// <param name="ResetLastOnly">Сбрасывать только последнее введённое число</param>
+        /// <param name="ResetInputDigits">Сбросить значение в окне вывода</param>
+        private void Reset(bool ResetLastOnly = false, bool ResetInputDigits = false)
+        {
+            this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions, ResetLastOnly, ResetInputDigits);
+        }
+
+        /// <summary>
+        /// Выполняет инициализацию свойств объекта
         /// </summary>
         /// <param name="MaxPlaces">Максимальная поддерживаемая разрядность калькулятора, определяется размером окна вывода</param>
-        /// <param name="ResetLastOnly">Сбрасывать только последнее число?</param>
-        public void SetDefaults(int MaxPlaces, int NumberBase, ICalculatorAction[] SupportedActions, bool ResetLastOnly = false, bool ResetInputDigits = false)
+        /// <param name="NumberBase">Основание системы счисления</param>
+        /// <param name="SupportedActions">Массив поддерживаемых действий калькулятора (интерфейс ICalculatorAction)</param>
+        /// <param name="ResetLastOnly">Сбрасывать только последнее введённое число</param>
+        /// <param name="ResetInputDigits">Сбросить значение в окне вывода</param>
+        private void SetDefaults(int MaxPlaces, int NumberBase, ICalculatorAction[] SupportedActions, bool ResetLastOnly = false, bool ResetInputDigits = false)
         {
             if (ResetLastOnly)
             {
@@ -119,18 +132,18 @@ namespace Calculator
         /// <summary>
         /// Метод для вызова очистки введённого числа
         /// </summary>
-        /// <param name="Mode"></param>
+        /// <param name="Mode">CE / C</param>
         public void ClearEnteredNumbers(string Mode)
         {
             switch (Mode)
             {
                 case "CE":
-                    this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions, true);
+                    this.Reset(true);
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
                 case "C":
-                    this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
+                    this.Reset();
                     this.OnValidInput?.Invoke(this, new ValidInputEventArgs("0", true, false));
                     break;
 
@@ -228,7 +241,7 @@ namespace Calculator
                 {
                     if (this.ResetInputDigits)
                     {
-                        this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
+                        this.Reset();
                     }
                     // Символ является числом
                     AddCharNum(CharNum);
@@ -245,7 +258,7 @@ namespace Calculator
                     {
                         if (this.ResetInputDigits)
                         {
-                            this.SetDefaults(this.MaxPlaces, this.NumberBase, this.SupportedActions);
+                            this.Reset();
                         }
 
                         // Выводим разделители десятичных дробей
@@ -310,18 +323,13 @@ namespace Calculator
             {
                 EnteredNumber Result;
 
-                // В зависимости от знаков чисел необходимо определить реальную операцию над модулем числа
-                var ResDef = ActionsShared.DefineFinalAction(this.CurrentAction, this.First, this.Second);
-
-                this.CurrentAction = ResDef.Action;
-                this.First = ResDef.Fir;
-                this.Second = ResDef.Sec;
-
                 foreach (ICalculatorAction ca in this.SupportedActions)
                 {
                     if (ca.GetCharNum() == this.CurrentAction)
                     {
                         Result = ca.PerformAction(this, this.First, this.Second);
+
+                        this.Reset(true, true);
 
                         if (Result.Number.Length > this.MaxPlaces)
                         {
