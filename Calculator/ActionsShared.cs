@@ -33,6 +33,13 @@ namespace Calculator
             return (JoinNumberParts(First.BeforeDec, First.AfterDec), JoinNumberParts(Second.BeforeDec, Second.AfterDec));
         }
 
+        /// <summary>
+        /// Определяет знак и порядок действия
+        /// </summary>
+        /// <param name="CurrentAction">Текущее действие код символа</param>
+        /// <param name="First">Первое число</param>
+        /// <param name="Second">Второе число</param>
+        /// <returns>Кортеж из действия, первого и второго числа</returns>
         public static (byte Action, EnteredNumber Fir, EnteredNumber Sec) DefineFinalAction(byte CurrentAction, EnteredNumber First, EnteredNumber Second)
         {
             byte ActionPlus = 43;

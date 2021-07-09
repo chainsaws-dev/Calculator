@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Calculator
@@ -23,7 +18,7 @@ namespace Calculator
         private int WidthBind;
 
         /// <summary>
-        /// Точка входа в программу
+        /// Обработчик события при загрузке формы
         /// </summary>
         /// <param name="sender">Объект источник</param>
         /// <param name="e">Аргументы события</param>
