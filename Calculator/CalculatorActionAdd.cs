@@ -8,6 +8,10 @@ namespace Calculator
 {
     internal class CalculatorActionAdd : ICalculatorAction
     {
+        /// <summary>
+        /// Возвращает ASCII код символа сложения
+        /// </summary>
+        /// <returns>ASCII код символа сложения</returns>
         public byte GetCharNum()
         {
             byte CharNum = 43;
@@ -15,15 +19,19 @@ namespace Calculator
         }
 
         /// <summary>
-        /// Операция сложения (Числа должны быть выравнены)
+        /// Операция сложения
         /// </summary>
         /// <returns>тип EnteredNumber с массовом байтов результата и знаком</returns>
         public EnteredNumber PerformAction(CalculatorEngine Engine, EnteredNumber FirstEN, EnteredNumber SecondEN)
         {
+            if (FirstEN.Negative ^ SecondEN.Negative)
+            {
+                throw new InvalidOperationException("Cannot add numbers with different signs. Use subtraction instead.");
+            }
+
             var LeveledNumbers = ActionsShared.LevelUpNumbers(FirstEN, SecondEN);
 
-            // TODO здесь и ниже учесть знаки при выполнении сложения
-            EnteredNumber Result = new EnteredNumber(new byte[LeveledNumbers.First.Length], false);
+            EnteredNumber Result = new EnteredNumber(new byte[LeveledNumbers.First.Length], FirstEN.Negative);
 
             int LeftOver = 0;
 

@@ -194,6 +194,22 @@ namespace Calculator
             return new ValidInputEventArgs(BytesString(this.Number), ResetInput, this.Negative);
         }
 
+        /// <summary>
+        /// Получает строковое представление числа в объекте
+        /// </summary>
+        /// <returns>Строку, представляющую число в объекте</returns>
+        public override string ToString()
+        {
+            if (this.Negative)
+            {
+                return "-" + BytesString(this.Number);
+            }
+            else
+            {
+                return BytesString(this.Number);
+            }
+        }
+
         #endregion Обратная связь
 
         #region Вспомогательные функции

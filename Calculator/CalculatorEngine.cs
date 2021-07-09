@@ -310,6 +310,13 @@ namespace Calculator
             {
                 EnteredNumber Result;
 
+                // В зависимости от знаков чисел необходимо определить реальную операцию над модулем числа
+                var ResDef = ActionsShared.DefineFinalAction(this.CurrentAction, this.First, this.Second);
+
+                this.CurrentAction = ResDef.Action;
+                this.First = ResDef.Fir;
+                this.Second = ResDef.Sec;
+
                 foreach (ICalculatorAction ca in this.SupportedActions)
                 {
                     if (ca.GetCharNum() == this.CurrentAction)
@@ -322,7 +329,6 @@ namespace Calculator
                         }
                         else
                         {
-                            // TODO Добавить получение знака результата
                             this.First = Result;
                             this.OnValidInput?.Invoke(this, this.First.ToValidInputArgsFull(true));
                         }

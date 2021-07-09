@@ -33,6 +33,54 @@ namespace Calculator
             return (JoinNumberParts(First.BeforeDec, First.AfterDec), JoinNumberParts(Second.BeforeDec, Second.AfterDec));
         }
 
+        public static (byte Action, EnteredNumber Fir, EnteredNumber Sec) DefineFinalAction(byte CurrentAction, EnteredNumber First, EnteredNumber Second)
+        {
+            byte ActionPlus = 43;
+            byte ActionMinus = 45;
+
+            // Плюс
+            if (CurrentAction == ActionPlus)
+            {
+                if (First.Negative ^ Second.Negative == false)
+                {
+                    return (CurrentAction, First, Second);
+                }
+                else if (First.Negative && !Second.Negative)
+                {
+                    First.SwitchNegative();
+                    return (ActionMinus, Second, First);
+                }
+                else if (!First.Negative && Second.Negative)
+                {
+                    Second.SwitchNegative();
+                    return (ActionMinus, First, Second);
+                }
+            }
+
+            // Минус
+            if (CurrentAction == ActionMinus)
+            {
+                if (First.Negative ^ Second.Negative == false)
+                {
+                    return (CurrentAction, First, Second);
+                }
+                else if (First.Negative && !Second.Negative)
+                {
+                    Second.SwitchNegative();
+                    return (ActionPlus, First, Second);
+                }
+                else if (!First.Negative && Second.Negative)
+                {
+                    Second.SwitchNegative();
+                    return (ActionPlus, First, Second);
+                }
+            }
+
+            // TODO Добавить перестановки для других действий
+
+            return (CurrentAction, First, Second);
+        }
+
         /// <summary>
         /// Выравнивает десятичные или целые части двух чисел
         /// </summary>
